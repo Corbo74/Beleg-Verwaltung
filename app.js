@@ -2,7 +2,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/fireba
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
@@ -62,26 +63,30 @@ function setStatus(msg) {
 }
 
 // --- Auth ---
-signInBtn.addEventListener("click", async () => {
-  try {
-    const result = await signInWithPopup(auth, provider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    driveAccessToken = credential?.accessToken ?? null;
-  } catch (err) {
+// signInWithRedirect statt signInWithPopup: Popups werden von vielen mobilen
+// Browsern und PWA-Standalone-Fenstern blockiert, Weiterleitung funktioniert überall.
+signInBtn.addEventListener("click", () => {
+  signInWithRedirect(auth, provider).catch((err) => {
     setStatus("Anmeldung fehlgeschlagen: " + err.message);
-  }
+  });
 });
 
-connectDriveBtn.addEventListener("click", async () => {
-  try {
-    const result = await signInWithPopup(auth, provider);
+connectDriveBtn.addEventListener("click", () => {
+  signInWithRedirect(auth, provider).catch((err) => {
+    setStatus("Drive-Verbindung fehlgeschlagen: " + err.message);
+  });
+});
+
+getRedirectResult(auth)
+  .then((result) => {
+    if (!result) return;
     const credential = GoogleAuthProvider.credentialFromResult(result);
     driveAccessToken = credential?.accessToken ?? null;
-    setStatus(driveAccessToken ? "Drive verbunden." : "Kein Drive-Zugriff erhalten.");
-  } catch (err) {
-    setStatus("Drive-Verbindung fehlgeschlagen: " + err.message);
-  }
-});
+    if (driveAccessToken) setStatus("Drive verbunden.");
+  })
+  .catch((err) => {
+    setStatus("Anmeldung fehlgeschlagen: " + err.message);
+  });
 
 signOutBtn.addEventListener("click", () => signOut(auth));
 
